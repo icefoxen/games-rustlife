@@ -27,6 +27,17 @@ impl LifeGrid {
         grid
     }
 
+    fn glider(&mut self, x:i32, y:i32) {
+        //  x
+        //   x
+        // xxx
+        self[(x,y+1)] = true;
+        self[(x+1,y+2)] = true;
+        self[(x+2,y)] = true;
+        self[(x+2,y+1)] = true;
+        self[(x+2,y+2)] = true;
+    }
+
     fn size(&self) -> usize {
         self.cells.len()
     }
@@ -190,8 +201,9 @@ fn step(grid:&LifeGrid) -> Box<LifeGrid> {
 }
 
 fn main() {
-    
     let mut g = Box::new(LifeGrid::random(10));
+    let mut g = Box::new(LifeGrid::new(10));
+    g.glider(0,0);
     loop {
         println!("{}", g);
         println!("Hit enter to step, ctrl-d to exit");
