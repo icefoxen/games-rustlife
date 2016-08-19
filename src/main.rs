@@ -5,6 +5,7 @@ use std::ops::{Index, IndexMut};
 
 extern crate rand;
 
+/// A structure containing the state of the Life game.
 struct LifeGrid {
     cells: Vec<Vec<bool>>,
 }
@@ -27,15 +28,50 @@ impl LifeGrid {
         grid
     }
 
+    /// Places the given pattern into the grid at the given point,
+    /// with 0,0 being the top-left.
+    fn put_pattern(&mut self, x:i32, y:i32, pattern: Vec<Vec<bool>>) {
+        for yn in 0..(pattern.len()) {
+            for xn in 0..(pattern[yn].len()) {
+                let nx = x + (xn as i32);
+                let ny = y + (yn as i32);
+                self[(ny, nx)] = pattern[yn][xn];
+            }
+        }
+    }
+
+    /// Places a glider in the specified part of the grid,
+    /// coordinates starting from the top-left.
     fn glider(&mut self, x:i32, y:i32) {
         //  x
         //   x
         // xxx
+        /*
         self[(x,y+1)] = true;
         self[(x+1,y+2)] = true;
         self[(x+2,y)] = true;
         self[(x+2,y+1)] = true;
         self[(x+2,y+2)] = true;
+         */
+        let g = vec![vec![false, true,  false],
+                     vec![false, false, true ],
+                     vec![true , true,  true ]
+        ];
+        self.put_pattern(x, y, g);
+    }
+
+    /// "Lightweight spaceship"
+    fn lwss(&mut self, x:i32, y:i32) {
+        //  xxxx
+        // x   x
+        //     x
+        // x  x 
+        let ss = vec![vec![false, true,  true,  true,  true ],
+                      vec![true,  false, false, false, true ],
+                      vec![false, false, false, false, true ],
+                      vec![true,  false, false, true,  false]
+        ];
+        self.put_pattern(x, y, ss);
     }
 
     fn size(&self) -> usize {
@@ -60,29 +96,37 @@ impl Index<(i32, i32)> for LifeGrid {
     type Output = bool;
     fn index(&self, _index: (i32,i32)) -> &bool {
         let (mut x, mut y) = _index;
+        let s = self.sizei();
+        // Annoyingly, Rust conforms with C and actually uses remainder
+        // instead of modulus.  This is kind of dumb, but oh well.
+        // But cases where n < -size might theoretically happen, which could
+        // still be a bit problematic... gotta check that.
+        // This idiom appears to get us the actual modulus, but surprisingly
+        // is only a *little* faster than the while-loop solution below.
+        // And built in release mode, the while loop is *much* faster
+        // presumably because each loop at most does one increment, and
+        // usually nothing, while the math happens all the time.
+        //let xwrap = ((x % s) + s) % s;
+        //let ywrap = ((y % s) + s) % s;
+        //&self.cells[xwrap as usize][ywrap as usize]
+        
         while x < 0 {
-            x += self.sizei();
+            x += s;
         }
         while y < 0 {
-            y += self.sizei();
+            y += s;
         }
-        while x >= self.sizei() {
-            x -= self.sizei();
+        while x >= s {
+            x -= s;
         }
-        while y >= self.sizei() {
-            y -= self.sizei()
+        while y >= s {
+            y -= s;
         }
+         
         // x and y should now be positive integers in [0,self.size())
+        //println!("x {} y {}", xwrap, ywrap);
         &self.cells[x as usize][y as usize]
 
-        /*
-        let (x,y) = _index;
-        // We'll just wrap the grid.
-        let xwrap = (x % self.sizei()) as usize;
-        let ywrap = (y % self.sizei()) as usize;
-        //println!("Indexing at {},{}", xwrap, ywrap);
-        &self.cells[xwrap][ywrap]
-        */
     }
 }
 
@@ -118,22 +162,18 @@ impl fmt::Display for LifeGrid {
 fn neighbors_cell(grid:&LifeGrid, x: i32, y: i32) -> i32 {
     let mut accm = 0;
     /*
-    if x-1 > 0 {
-        // Check to the left
-        if grid[(x-1,y)] {
+    let cells = vec![(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)];
+    for (xoff,yoff) in cells {
+        if grid[(x+xoff,y+yoff)] {
             accm += 1;
         }
     }
-    if y-1 > 0 {
-        // Check above
-    }
-    if x+1 < grid.sizei() {
-        // Check to the right
-    }
-    if y+1 < grid.sizei() {
-        // Check below
-    }
-     */
+*/
+    
+
+    // This feels very crude, but, oh well.
+    // Keeping the loop unrolled seems to actually be a minor performance win.
+
     if grid[(x-1,y-1)] {
         accm += 1;
     }
@@ -160,6 +200,7 @@ fn neighbors_cell(grid:&LifeGrid, x: i32, y: i32) -> i32 {
     if grid[(x+1,y+1)] {
         accm += 1;
     }
+
     
     accm
 }
@@ -200,10 +241,10 @@ fn step(grid:&LifeGrid) -> Box<LifeGrid> {
     Box::new(newgrid)
 }
 
-fn main() {
-    let mut g = Box::new(LifeGrid::random(10));
-    let mut g = Box::new(LifeGrid::new(10));
-    g.glider(0,0);
+fn main_interactive() {
+    //let mut g = Box::new(LifeGrid::random(10));
+    let mut g = Box::new(LifeGrid::new(20));
+    g.lwss(5,5);
     loop {
         println!("{}", g);
         println!("Hit enter to step, ctrl-d to exit");
@@ -222,4 +263,16 @@ fn main() {
             }
         }
     }
+}
+
+fn main() {
+    /*
+    let mut g = Box::new(LifeGrid::new(10));
+    g.lwss(0,0);
+    for _ in 0..10 {
+        println!("{}", g);
+        g = step(&g);
+    }
+     */
+    main_interactive()
 }
